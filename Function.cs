@@ -5,16 +5,15 @@ using Google.Apis.Storage.v1.Data;
 using Google.Cloud.Functions.Framework;
 using Google.Cloud.Storage.V1;
 using Google.Events.Protobuf.Cloud.PubSub.V1;
-using NetCoreForce.Models;
 using Newtonsoft.Json;
-using Parquet.Schema;
-using Parquet.Serialization;
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using Tts.Microservices.Products.Generated;
 
 namespace GoogleFunction;
 
@@ -47,11 +46,12 @@ public class Function : ICloudEventFunction<MessagePublishedData>
     public async Task HandleAsync(CloudEvent cloudEvent, MessagePublishedData data, CancellationToken cancellationToken)
     {
         // {"notificationType":"ResourceUpdated","projectKey":"festool-prod","resource":{"typeId":"order","id":"fa209b2a-10e6-4376-ab09-47fbf2f951c2"},"resourceUserProvidedIdentifiers":{"orderNumber":"34488460"},"version":2,"oldVersion":1,"modifiedAt":"2023-09-09T10:22:37.396Z"}
-        Console.WriteLine("Storage object information:");
+        string textEventData = data.Message?.TextData;
+        Console.WriteLine("Storage object information: " + data + ", " + textEventData);
 
         try
         {
-            CtEvent ctEvent = JsonConvert.DeserializeObject<CtEvent>(data.Message?.TextData);
+            CtEvent ctEvent = JsonConvert.DeserializeObject<CtEvent>(textEventData);
             switch (ctEvent.Resource.TypeId)
             {
                 case "cart":
@@ -68,10 +68,10 @@ public class Function : ICloudEventFunction<MessagePublishedData>
                         ICustomer ctCustomer = await _commerceToolsCartService.GetCustomerByIdAsync(order.CustomerId);
                         if (ctCustomer is not null)
                         {
-                            List<SfAsset> assets = await _salesforceClient.QueryAsync<SfAsset>($"SELECT Id, ProductCode__c, SalesNumber__c, Product2.Name, RegistrationDate__c, PurchaseDate, ManufactureDate, Status, Source__c from Asset where Contact.MyFestoolId__c = '{ctCustomer.Key}'", false);
+                            List<TtsSfAsset> assets = await _salesforceClient.QueryAsync<TtsSfAsset>($"SELECT Id, ProductCode__c, SalesNumber__c, Product2.Name, RegistrationDate__c, PurchaseDate, ManufactureDate, Status, Source__c from Asset where Contact.MyFestoolId__c = '{ctCustomer.Key}'", false);
                             if (assets?.Any() == true)
                             {
-                                await UploadObject(ctCustomer.Key, "assets", assets);
+                                await UploadObject(ctCustomer.Key, "assets", assets.Select(a => a.AsSimpleModel(ctCustomer.Key)));
                             }
                         }
                     }
@@ -120,9 +120,20 @@ public class Function : ICloudEventFunction<MessagePublishedData>
         // Upload some files
         try
         {
+            object dataToUpload;
             using MemoryStream ms = new();
-            ParquetSchema parquet = await ParquetSerializer.SerializeAsync<T>(data, ms);
-            await client.UploadObjectAsync(bucketName, $"{id}.json", "application/vnd.apache.parquet", ms);
+            if (data.Count() == 1)
+            {
+                dataToUpload = data.First();
+            }
+            else
+            {
+                dataToUpload = data;
+            }
+
+            //ParquetSchema parquet = await ParquetSerializer.SerializeAsync(data, file);
+            byte[] bytes = Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(dataToUpload));
+            await client.UploadObjectAsync(bucketName, $"{id}.json", "application/json", new MemoryStream(bytes));
         }
         catch (Exception ex)
         {
