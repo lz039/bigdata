@@ -1,13 +1,18 @@
 using CloudNative.CloudEvents;
+using commercetools.Sdk.Api.Models.Customers;
 using Festool.Ecommerce.CommerceTools.Services;
 using Google.Apis.Storage.v1.Data;
 using Google.Cloud.Functions.Framework;
 using Google.Cloud.Storage.V1;
 using Google.Events.Protobuf.Cloud.PubSub.V1;
+using NetCoreForce.Models;
 using Newtonsoft.Json;
+using Parquet.Schema;
+using Parquet.Serialization;
 using System;
+using System.Collections.Generic;
 using System.IO;
-using System.Text;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -23,10 +28,12 @@ namespace GoogleFunction;
 public class Function : ICloudEventFunction<MessagePublishedData>
 {
     private readonly CommerceToolsService _commerceToolsCartService;
+    private readonly SalesforceClient _salesforceClient;
 
-    public Function(CommerceToolsService commerceToolsCartService)
+    public Function(CommerceToolsService commerceToolsCartService, SalesforceClient salesforceClient)
     {
         _commerceToolsCartService = commerceToolsCartService;
+        _salesforceClient = salesforceClient;
     }
 
     /// <summary>
@@ -50,27 +57,39 @@ public class Function : ICloudEventFunction<MessagePublishedData>
                 case "cart":
                     var cart = await _commerceToolsCartService.GetCartByIdAsync(Guid.Parse(ctEvent.Resource.Id));
                     Console.WriteLine("CartId: " + cart?.Id);
-                    await UploadObject(cart.Id, "cart", cart.AsSimpleModel());
+                    await UploadObject(cart.Id, "cart", new[] { cart.AsSimpleModel() });
                     break;
                 case "order":
                     var order = await _commerceToolsCartService.GetOrderByIdAsync(Guid.Parse(ctEvent.Resource.Id));
                     Console.WriteLine("OrderNumber: " + order?.OrderNumber);
-                    await UploadObject(order.Id, "order", order.AsSimpleModel());
+                    await UploadObject(order.Id, "order", new[] { order.AsSimpleModel() });
+                    if (ctEvent.NotificationType == nameof(NotificationTypes.ResourceCreated) && order.CustomerId != null)
+                    {
+                        ICustomer ctCustomer = await _commerceToolsCartService.GetCustomerByIdAsync(order.CustomerId);
+                        if (ctCustomer is not null)
+                        {
+                            List<SfAsset> assets = await _salesforceClient.QueryAsync<SfAsset>($"SELECT Id, ProductCode__c, SalesNumber__c, Product2.Name, RegistrationDate__c, PurchaseDate, ManufactureDate, Status, Source__c from Asset where Contact.MyFestoolId__c = '{ctCustomer.Key}'", false);
+                            if (assets?.Any() == true)
+                            {
+                                await UploadObject(ctCustomer.Key, "assets", assets);
+                            }
+                        }
+                    }
                     break;
                 case "inventory-entry":
                     var inventory = await _commerceToolsCartService.GetInventoryByIdAsync(Guid.Parse(ctEvent.Resource.Id));
                     Console.WriteLine("Inventory: " + inventory?.Sku + " - " + inventory?.AvailableQuantity);
-                    await UploadObject(inventory.Id, "inventory", inventory);
+                    await UploadObject(inventory.Id, "inventory", new[] { inventory });
                     break;
                 case "product":
                     var product = await _commerceToolsCartService.GetProductById(Guid.Parse(ctEvent.Resource.Id));
                     Console.WriteLine("Product: " + product?.Id);
-                    await UploadObject(product.Id, "product", product);
+                    await UploadObject(product.Id, "product", new[] { product });
                     break;
                 case "shopping-list":
                     var shoppingList = await _commerceToolsCartService.GetShoppingListByIdAsync(Guid.Parse(ctEvent.Resource.Id));
                     Console.WriteLine("ShoppingList: " + shoppingList?.Id);
-                    await UploadObject(shoppingList.Id, "shoppinglist", shoppingList);
+                    await UploadObject(shoppingList.Id, "shoppinglist", new[] { shoppingList });
                     break;
                 default:
                     Console.WriteLine("Unhandeled typeId: " + ctEvent.Resource.TypeId);
@@ -83,7 +102,7 @@ public class Function : ICloudEventFunction<MessagePublishedData>
         }
     }
 
-    private static async Task UploadObject(string id, string type, object data)
+    private static async Task UploadObject<T>(string id, string type, IEnumerable<T> data)
     {
         StorageClient client = StorageClient.Create();
 
@@ -99,8 +118,16 @@ public class Function : ICloudEventFunction<MessagePublishedData>
         }
 
         // Upload some files
-        byte[] content = Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(data));
-        await client.UploadObjectAsync(bucketName, $"{id}.json", "text/json", new MemoryStream(content));
+        try
+        {
+            using MemoryStream ms = new();
+            ParquetSchema parquet = await ParquetSerializer.SerializeAsync<T>(data, ms);
+            await client.UploadObjectAsync(bucketName, $"{id}.json", "application/vnd.apache.parquet", ms);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine("Error serializing data: " + ex.Message);
+        }
     }
 
     public enum NotificationTypes

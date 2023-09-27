@@ -2,6 +2,7 @@
 using commercetools.Sdk.Api.Client.RequestBuilders.Projects;
 using commercetools.Sdk.Api.Extensions;
 using commercetools.Sdk.Api.Models.Carts;
+using commercetools.Sdk.Api.Models.Customers;
 using commercetools.Sdk.Api.Models.Inventories;
 using commercetools.Sdk.Api.Models.Orders;
 using commercetools.Sdk.Api.Models.Products;
@@ -68,6 +69,16 @@ public class CommerceToolsService
         var request = _ctClient
             .ShoppingLists()
             .WithId(shoppingListId.ToString())
+            .Get();
+
+        return request.ExecuteAsync();
+    }
+
+    public Task<ICustomer> GetCustomerByIdAsync(string customerId)
+    {
+        var request = _ctClient
+            .Customers()
+            .WithId(customerId)
             .Get();
 
         return request.ExecuteAsync();

@@ -8,8 +8,11 @@
 		<PackageReference Include="Google.Cloud.Functions.Hosting" Version="2.1.0" />
 		<PackageReference Include="Google.Cloud.Storage.V1" Version="4.6.0" />
 		<PackageReference Include="Google.Events.Protobuf" Version="1.3.0" />
+		<PackageReference Include="NetCoreForce.Models" Version="4.0.0" />
 		<PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
 		<PackageReference Include="commercetools.Sdk.Api" Version="7.2.0" />
+		<PackageReference Include="Parquet.Net" Version="4.16.4" />
+		<PackageReference Include="Polly" Version="7.2.4" />
 		<None Include="appsettings*.json" CopyToOutputDirectory="PreserveNewest" />
 	</ItemGroup>
 </Project>

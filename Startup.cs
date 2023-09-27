@@ -14,8 +14,12 @@ namespace GoogleFunction
         public override void ConfigureServices(WebHostBuilderContext context, IServiceCollection services)
         {
             services.UseCommercetoolsApi(context.Configuration);
+            
             services.Configure<ClientConfiguration>(c => context.Configuration.Bind(DefaultClientNames.Api, c));
+            services.Configure<SalesforceConfiguration>(context.Configuration.GetSection(nameof(SalesforceConfiguration)));
+
             services.AddScoped<CommerceToolsService>();
+            services.AddScoped<SalesforceClient>();
 
             base.ConfigureServices(context, services);
         }

@@ -362,3 +362,5 @@ MigrationBackup/
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
 /appsettings.json
+/lz-bigdata-f1990b83d85a.json
+/Properties/launchSettings.json
