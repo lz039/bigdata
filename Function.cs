@@ -71,7 +71,7 @@ public class Function : ICloudEventFunction<MessagePublishedData>
                             List<TtsSfAsset> assets = await _salesforceClient.QueryAsync<TtsSfAsset>($"SELECT Id, ProductCode__c, SalesNumber__c, Product2.Name, RegistrationDate__c, PurchaseDate, ManufactureDate, Status, Source__c from Asset where Contact.MyFestoolId__c = '{ctCustomer.Key}'", false);
                             if (assets?.Any() == true)
                             {
-                                await UploadObject(ctCustomer.Key, "assets", assets.Select(a => a.AsSimpleModel(ctCustomer.Key)));
+                                await UploadObject(ctCustomer.Key, "assets", assets.Select(a => a.AsSimpleModel(ctCustomer)));
                             }
                         }
                     }

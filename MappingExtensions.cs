@@ -1,5 +1,6 @@
 ﻿using commercetools.Sdk.Api.Models.Carts;
 using commercetools.Sdk.Api.Models.Common;
+using commercetools.Sdk.Api.Models.Customers;
 using commercetools.Sdk.Api.Models.Orders;
 using commercetools.Sdk.Api.Models.Products;
 using System;
@@ -96,7 +97,7 @@ namespace GoogleFunction
             }
         }
 
-        public static SimpleAsset AsSimpleModel(this TtsSfAsset asset, string myFestoolId)
+        public static SimpleAsset AsSimpleModel(this TtsSfAsset asset, ICustomer ctCustomer)
         {
             // Id, ProductCode__c, SalesNumber__c, Product2.Name, RegistrationDate__c, PurchaseDate, ManufactureDate, Status, Source__c from Asset where Contact.MyFestoolId__c
             return new()
@@ -110,7 +111,8 @@ namespace GoogleFunction
                 Status = asset.Status,
                 ProductName = asset.Product2?.Name,
                 Source = asset.Source__c,
-                MyFestoolId = myFestoolId
+                MyFestoolId = ctCustomer.Key,
+                CustomerId = ctCustomer.Id
             };
         }
     }
@@ -127,6 +129,7 @@ namespace GoogleFunction
         public DateTime? ManufactureDate { get; internal set; }
         public string Source { get; internal set; }
         public string MyFestoolId { get; internal set; }
+        public string CustomerId { get; internal set; }
     }
 
     public class SimpleLineItem
