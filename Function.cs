@@ -63,6 +63,11 @@ public class Function : ICloudEventFunction<MessagePublishedData>
                     var order = await _commerceToolsCartService.GetOrderByIdAsync(Guid.Parse(ctEvent.Resource.Id));
                     Console.WriteLine("OrderNumber: " + order?.OrderNumber);
                     await UploadObject(order.Id, "order", new[] { order.AsSimpleModel() });
+                    foreach (SimpleLineItem item in order.AsSimpleModel().LineItems)
+                    {
+                        await UploadObject($"{order.Id}-{item.Id}", "li-order", new[] { order.AsSimpleModel() });
+                    }
+
                     if (ctEvent.NotificationType == nameof(NotificationTypes.ResourceCreated) && order.CustomerId != null)
                     {
                         ICustomer ctCustomer = await _commerceToolsCartService.GetCustomerByIdAsync(order.CustomerId);
@@ -107,7 +112,7 @@ public class Function : ICloudEventFunction<MessagePublishedData>
         StorageClient client = StorageClient.Create();
 
         // Create a bucket with a globally unique name
-        string bucketName = $"lz-{type}";
+        string bucketName = $"lzs-{type}";
         try
         {
             Bucket bucket = await client.CreateBucketAsync("lz-bigdata", bucketName);
