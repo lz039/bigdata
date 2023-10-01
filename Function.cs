@@ -65,7 +65,12 @@ public class Function : ICloudEventFunction<MessagePublishedData>
                     await UploadObject(order.Id, "order", new[] { order.AsSimpleModel() });
                     foreach (SimpleLineItem item in order.AsSimpleModel().LineItems)
                     {
-                        await UploadObject($"{order.Id}-{item.Id}", "li-order", new[] { order.AsSimpleModel() });
+                        var so = order.AsSimpleModel();
+                        so.LineItems = new[] { item };
+                        await UploadObject($"{order.Id}-{item.Id}", "li-order", new[] 
+                        {
+                            so
+                        });
                     }
 
                     if (ctEvent.NotificationType == nameof(NotificationTypes.ResourceCreated) && order.CustomerId != null)
