@@ -57,7 +57,7 @@ namespace Tts.Microservices.Products.Generated
         ///</summary>
         [JsonProperty(PropertyName = "contact")]
         [Updateable(false), Createable(false)]
-        public SfContact Contact { get; set; }
+        public TtsSfContact Contact { get; set; }
 
         ///<summary>
         /// Account ID

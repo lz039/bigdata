@@ -63,22 +63,13 @@ public class Function : ICloudEventFunction<MessagePublishedData>
                     var order = await _commerceToolsCartService.GetOrderByIdAsync(Guid.Parse(ctEvent.Resource.Id));
                     Console.WriteLine("OrderNumber: " + order?.OrderNumber);
                     await UploadObject(order.Id, "order", new[] { order.AsSimpleModel() });
-                    foreach (SimpleLineItem item in order.AsSimpleModel().LineItems)
-                    {
-                        var so = order.AsSimpleModel();
-                        so.LineItems = new[] { item };
-                        await UploadObject($"{order.Id}-{item.Id}", "li-order", new[] 
-                        {
-                            so
-                        });
-                    }
 
                     if (ctEvent.NotificationType == nameof(NotificationTypes.ResourceCreated) && order.CustomerId != null)
                     {
                         ICustomer ctCustomer = await _commerceToolsCartService.GetCustomerByIdAsync(order.CustomerId);
                         if (ctCustomer is not null)
                         {
-                            List<TtsSfAsset> assets = await _salesforceClient.QueryAsync<TtsSfAsset>($"SELECT Id, ProductCode__c, SalesNumber__c, Product2.Name, RegistrationDate__c, PurchaseDate, ManufactureDate, Status, Source__c from Asset where Contact.MyFestoolId__c = '{ctCustomer.Key}'", false);
+                            List<TtsSfAsset> assets = await _salesforceClient.QueryAsync<TtsSfAsset>($"SELECT Id, Contact.Interests__c, ProductCode__c, SalesNumber__c, Product2.Name, RegistrationDate__c, PurchaseDate, ManufactureDate, Status, Source__c from Asset where Contact.MyFestoolId__c = '{ctCustomer.Key}'", false);
                             if (assets?.Any() == true)
                             {
                                 await UploadObject(ctCustomer.Key, "assets", assets.Select(a => a.AsSimpleModel(ctCustomer)));
@@ -117,14 +108,14 @@ public class Function : ICloudEventFunction<MessagePublishedData>
         StorageClient client = StorageClient.Create();
 
         // Create a bucket with a globally unique name
-        string bucketName = $"lzs-{type}";
+        string bucketName = $"lz-{type}-01";
         try
         {
-            Bucket bucket = await client.CreateBucketAsync("lz-bigdata", bucketName);
+            await client.CreateBucketAsync("lz-bigdata", bucketName);
         }
-        catch (Exception ex)
+        catch (Exception)
         {
-            Console.WriteLine($"Error creating bucket {bucketName}: {ex.Message}");
+            // somehow expected
         }
 
         // Upload some files

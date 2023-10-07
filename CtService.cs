@@ -1,17 +1,19 @@
-﻿using Festool.Ecommerce.CommerceTools.Services;
+﻿using commercetools.Sdk.Api.Models.Orders;
+using Festool.Ecommerce.CommerceTools.Services;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using System;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
 namespace GoogleFunction
 {
-    public class CtService : BackgroundService
+    public class CtBackgroundUpdater : BackgroundService
     {
         private readonly IServiceProvider _serviceProvider;
 
-        public CtService(IServiceProvider serviceProvider)
+        public CtBackgroundUpdater(IServiceProvider serviceProvider)
         {
             _serviceProvider = serviceProvider;
         }
@@ -23,8 +25,8 @@ namespace GoogleFunction
                 CommerceToolsService commerceToolsService =
                     scope.ServiceProvider.GetRequiredService<CommerceToolsService>();
 
-                var orders = await commerceToolsService.GetOrdersAsync();
-                foreach (var order in orders.Results)
+                IOrderPagedQueryResponse orders = await commerceToolsService.GetOrdersAsync();
+                foreach (IOrder order in orders.Results)
                 {
                     await commerceToolsService.UpdateOrderAsync(order);
                 }

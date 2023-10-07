@@ -72,7 +72,7 @@ namespace GoogleFunction
         {
             foreach (ILineItem li in lineItems)
             {
-                li.Name.TryGetValue("DE", out string name);
+                li.Name.TryGetValue("de", out string name);
                 IPrice dePrice = li.Variant?.Prices?.FirstOrDefault(p => p.Country == "DE");
                 yield return new()
                 {
@@ -103,6 +103,7 @@ namespace GoogleFunction
             return new()
             {
                 Id = asset.Id,
+                Interests = asset.Contact?.Interests__c,
                 ProductCode = asset.ProductCode,
                 SalesNumber = asset.SalesNumber__c,
                 RegistrationDate = asset.RegistrationDate__c,
@@ -130,6 +131,7 @@ namespace GoogleFunction
         public string Source { get; internal set; }
         public string MyFestoolId { get; internal set; }
         public string CustomerId { get; internal set; }
+        public string Interests { get; internal set; }
     }
 
     public class SimpleLineItem
