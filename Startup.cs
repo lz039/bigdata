@@ -21,7 +21,7 @@ namespace GoogleFunction
             services.AddScoped<CommerceToolsService>();
             services.AddScoped<SalesforceClient>();
 
-            services.AddHostedService<CtBackgroundUpdater>();
+            //services.AddHostedService<CtBackgroundUpdater>();
 
             base.ConfigureServices(context, services);
         }

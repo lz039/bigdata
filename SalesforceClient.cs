@@ -78,33 +78,43 @@ namespace GoogleFunction
 
         private async Task CreateNewClientAsync(SalesforceConfiguration config)
         {
-            AuthenticationClient auth = new(config.ApiVersion);
-            try
+            string authUrl = config.AuthUrl;
+            List<KeyValuePair<string, string>> content = new()
             {
-                await _retryAuthPolicy.ExecuteAsync(()
-                    => auth.UsernamePasswordAsync(config.ClientId, config.ClientSecret, config.Username, config.Password, config.TokenRequestEndpoint));
-            }
-            catch (ForceAuthException ex)
-            {
-                throw new Exception("Error getting access token", ex);
-            }
-            catch (JsonReaderException ex)
-            {
-                throw new Exception("Error getting access token", ex);
-            }
-            catch (Exception ex)
-            {
-                throw new Exception("Error getting access token", ex);
-            }
+                new KeyValuePair<string, string>("grant_type", "password"),
+                new KeyValuePair<string, string>("client_id", config.ClientId),
+                new KeyValuePair<string, string>("client_secret", config.ClientSecret),
+                new KeyValuePair<string, string>("username", config.Username),
+                new KeyValuePair<string, string>("password", config.Password)
+            };
 
-            _getForceClient = new ForceClient(auth.AccessInfo.InstanceUrl,
-                auth.ApiVersion, auth.AccessInfo.AccessToken,
-                _getHttpClient, auth.AccessInfo);
+            using var response = await _getHttpClient.PostAsync(authUrl, new FormUrlEncodedContent(content));
+            string stringContent = await response.Content.ReadAsStringAsync();
+            SalesforceAuthorizationResponse authResponse = JsonConvert.DeserializeObject<SalesforceAuthorizationResponse>(stringContent);
+
+            _getForceClient = new ForceClient(authResponse.instance_url, config.ApiVersion, authResponse.access_token);
         }
+    }
+
+    public class SalesforceAuthorizationResponse
+    {
+        public string access_token { get; set; }
+
+        public string instance_url { get; set; }
+
+        public string id { get; set; }
+
+        public string token_type { get; set; }
+
+        public string issued_at { get; set; }
+
+        public string signature { get; set; }
     }
 
     public class SalesforceConfiguration
     {
+        public string AuthUrl { get; set; }
+
         public string ClientId { get; set; }
 
         public string ClientSecret { get; set; }
