@@ -1,4 +1,5 @@
 ﻿using commercetools.Base.Client;
+using commercetools.Sdk.Api.Client.RequestBuilders.Orders;
 using commercetools.Sdk.Api.Client.RequestBuilders.Projects;
 using commercetools.Sdk.Api.Extensions;
 using commercetools.Sdk.Api.Models.Carts;
@@ -10,6 +11,7 @@ using commercetools.Sdk.Api.Models.ShoppingLists;
 using Microsoft.Extensions.Options;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 
 namespace Festool.Ecommerce.CommerceTools.Services;
@@ -85,40 +87,64 @@ public class CommerceToolsService
         return request.ExecuteAsync();
     }
 
-    internal Task<IOrderPagedQueryResponse> GetOrdersAsync()
+    public async IAsyncEnumerable<IList<IOrder>> GetOrdersAsync()
     {
-        var request = _ctClient
-            .Orders()
-            .Get();
+        string lastId = null;
+        bool goOn = true;
+        while (goOn)
+        {
+            IOrderPagedQueryResponse response;
+            if (lastId == null)
+            {
+                response = await _ctClient.Orders().Get().WithLimit(100).WithWithTotal(false).WithSort("id asc").ExecuteAsync();
+            }
+            else
+            {
+                response = await _ctClient.Orders().Get().WithLimit(100).WithWithTotal(false).WithSort("id asc").WithWhere($"id > \"{ lastId }\"").ExecuteAsync();
+            }
 
-        return request.ExecuteAsync();
+            IList<IOrder> results = response.Results;
+            goOn = results.Count == 100;
+            lastId = results.LastOrDefault()?.Id;
+            yield return results;
+        }
     }
 
-    internal async Task UpdateOrderAsync(IOrder order)
+    public async Task UpdateOrderAsync(IList<IOrder> orders)
     {
-        var request = _ctClient
-            .Orders()
-            .WithId(order.Id)
-            .Post(
-                new OrderUpdate()
-                {
-                    Version = order.Version,
-                    Actions = new List<IOrderUpdateAction>
+        List<ByProjectKeyOrdersByIDPost> changeRequests = new();
+        Parallel.ForEach(orders, order =>
+        {
+            changeRequests.Add(_ctClient
+                .Orders()
+                .WithId(order.Id)
+                .Post(
+                    new OrderUpdate()
                     {
-                        new OrderChangeOrderStateAction
+                        Version = order.Version,
+                        Actions = new List<IOrderUpdateAction>
                         {
-                            OrderState = order.OrderState
+                            new OrderChangeOrderStateAction
+                            {
+                                OrderState = order.OrderState
+                            }
                         }
-                    }
-                });
+                    }));
+        });
+
+        List<Task<IOrder>> tasks = new();
+        foreach (IEnumerable<ByProjectKeyOrdersByIDPost> requests in changeRequests.Chunk(50))
+        {
+            if (!requests.Any()) continue;
+            tasks.AddRange(requests.Select(r => r?.ExecuteAsync()));
+        }
 
         try
         {
-            await request.ExecuteAsync();
+            await Task.WhenAll(tasks);
         }
-        catch (Exception ex)
+        catch (Exception)
         {
         }
-
     }
 }
