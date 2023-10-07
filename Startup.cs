@@ -21,6 +21,8 @@ namespace GoogleFunction
             services.AddScoped<CommerceToolsService>();
             services.AddScoped<SalesforceClient>();
 
+            services.AddHostedService<CtService>();
+
             base.ConfigureServices(context, services);
         }
     }

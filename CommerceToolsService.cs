@@ -9,6 +9,7 @@ using commercetools.Sdk.Api.Models.Products;
 using commercetools.Sdk.Api.Models.ShoppingLists;
 using Microsoft.Extensions.Options;
 using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 
 namespace Festool.Ecommerce.CommerceTools.Services;
@@ -82,5 +83,42 @@ public class CommerceToolsService
             .Get();
 
         return request.ExecuteAsync();
+    }
+
+    internal Task<IOrderPagedQueryResponse> GetOrdersAsync()
+    {
+        var request = _ctClient
+            .Orders()
+            .Get();
+
+        return request.ExecuteAsync();
+    }
+
+    internal async Task UpdateOrderAsync(IOrder order)
+    {
+        var request = _ctClient
+            .Orders()
+            .WithId(order.Id)
+            .Post(
+                new OrderUpdate()
+                {
+                    Version = order.Version,
+                    Actions = new List<IOrderUpdateAction>
+                    {
+                        new OrderChangeOrderStateAction
+                        {
+                            OrderState = order.OrderState
+                        }
+                    }
+                });
+
+        try
+        {
+            await request.ExecuteAsync();
+        }
+        catch (Exception ex)
+        {
+        }
+
     }
 }
