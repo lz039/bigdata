@@ -1,10 +1,10 @@
 using CloudNative.CloudEvents;
 using commercetools.Sdk.Api.Models.Customers;
 using Festool.Ecommerce.CommerceTools.Services;
-using Google.Apis.Storage.v1.Data;
 using Google.Cloud.Functions.Framework;
 using Google.Cloud.Storage.V1;
 using Google.Events.Protobuf.Cloud.PubSub.V1;
+using Microsoft.Extensions.DependencyInjection;
 using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
@@ -27,12 +27,12 @@ namespace GoogleFunction;
 public class Function : ICloudEventFunction<MessagePublishedData>
 {
     private readonly CommerceToolsService _commerceToolsCartService;
-    private readonly SalesforceClient _salesforceClient;
+    private readonly IServiceProvider _serviceProvider;
 
-    public Function(CommerceToolsService commerceToolsCartService, SalesforceClient salesforceClient)
+    public Function(CommerceToolsService commerceToolsCartService, IServiceProvider serviceProvider)
     {
         _commerceToolsCartService = commerceToolsCartService;
-        _salesforceClient = salesforceClient;
+        _serviceProvider = serviceProvider;
     }
 
     /// <summary>
@@ -69,10 +69,14 @@ public class Function : ICloudEventFunction<MessagePublishedData>
                         ICustomer ctCustomer = await _commerceToolsCartService.GetCustomerByIdAsync(order.CustomerId);
                         if (ctCustomer is not null)
                         {
-                            List<TtsSfAsset> assets = await _salesforceClient.QueryAsync<TtsSfAsset>($"SELECT Id, Contact.Interests__c, ProductCode__c, SalesNumber__c, Product2.Name, RegistrationDate__c, PurchaseDate, ManufactureDate, Status, Source__c from Asset where Contact.MyFestoolId__c = '{ctCustomer.Key}'", false);
-                            if (assets?.Any() == true)
+                            using (IServiceScope scope = _serviceProvider.CreateScope())
                             {
-                                await UploadObject(ctCustomer.Key, "assets", assets.Select(a => a.AsSimpleModel(ctCustomer)));
+                                SalesforceClient salesforceClient = scope.ServiceProvider.GetRequiredService<SalesforceClient>();
+                                List<TtsSfAsset> assets = await salesforceClient.QueryAsync<TtsSfAsset>($"SELECT Id, Contact.Interests__c, ProductCode__c, SalesNumber__c, Product2.Name, RegistrationDate__c, PurchaseDate, ManufactureDate, Status, Source__c from Asset where Contact.MyFestoolId__c = '{ctCustomer.Key}'", false);
+                                if (assets?.Any() == true)
+                                {
+                                    await UploadObject(ctCustomer.Key, "assets", assets.Select(a => a.AsSimpleModel(ctCustomer)));
+                                }
                             }
                         }
                     }
