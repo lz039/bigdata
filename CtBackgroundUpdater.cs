@@ -27,7 +27,14 @@ namespace GoogleFunction
 
                 await foreach (IList<IOrder> orders in commerceToolsService.GetOrdersAsync())
                 {
-                    await commerceToolsService.UpdateOrderAsync(orders);
+                    try
+                    {
+                        await commerceToolsService.UpdateOrderAsync(orders);
+                    }
+                    catch (Exception)
+                    {
+                        // skip
+                    }
                 }
             }
         }

@@ -91,21 +91,31 @@ public class CommerceToolsService
     {
         string lastId = null;
         bool goOn = true;
+        IList<IOrder> results = new List<IOrder>();
         while (goOn)
         {
-            IOrderPagedQueryResponse response;
-            if (lastId == null)
+            try
             {
-                response = await _ctClient.Orders().Get().WithLimit(100).WithWithTotal(false).WithSort("id asc").ExecuteAsync();
+                IOrderPagedQueryResponse response;
+                if (lastId == null)
+                {
+                    response = await _ctClient.Orders().Get().WithLimit(100).WithWithTotal(false).WithSort("id asc").ExecuteAsync();
+                }
+                else
+                {
+                    response = await _ctClient.Orders().Get().WithLimit(100).WithWithTotal(false).WithSort("id asc").WithWhere($"id > \"{lastId}\"").ExecuteAsync();
+                }
+
+                results = response.Results;
+                goOn = results.Count == 100;
+                lastId = results.LastOrDefault()?.Id;
+               
             }
-            else
+            catch (Exception)
             {
-                response = await _ctClient.Orders().Get().WithLimit(100).WithWithTotal(false).WithSort("id asc").WithWhere($"id > \"{ lastId }\"").ExecuteAsync();
+                // skip
             }
 
-            IList<IOrder> results = response.Results;
-            goOn = results.Count == 100;
-            lastId = results.LastOrDefault()?.Id;
             yield return results;
         }
     }
