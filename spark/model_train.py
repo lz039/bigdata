@@ -2,6 +2,11 @@ from pyspark.sql import SparkSession
 from pyspark.sql import functions as F
 from pyspark.ml.fpm import FPGrowth
 
+spark = SparkSession \
+    .builder \
+    .appName("FPGrowthTraining") \
+    .getOrCreate()
+
 sdf_orders = spark.read.option("multiline","true").json("gs://lz-order-compact-02/*.json")
 
 sdf_orders_exploded = sdf_orders.select(F.col("CustomerId"), F.col("OrderNumber"), F.explode(F.col("LineItems")).alias("LineItem"))
@@ -12,4 +17,5 @@ sdf_orders_fp = sdf_orders_exploded.filter(sdf_orders_exploded.TypeId != 'SpareP
 fpGrowth = FPGrowth(itemsCol="SalesNumbers", minConfidence=0.2, minSupport=0.01)
 model = fpGrowth.fit(sdf_orders_fp)
 
+# TODO: Take date or GUID instead of static number
 model.save('gs://lz-gcs/fp_growth_orders_05')
