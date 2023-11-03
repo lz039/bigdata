@@ -26,7 +26,7 @@ default_args = {
 # DAG object.
 with models.DAG(
     # The id you will see in the DAG airflow page
-    "dataproc_workflow_dag",
+    "train_recommender_weekly",
     default_args=default_args,
     # The interval with which to schedule the DAG
     schedule_interval=datetime.timedelta(days=7),  # Override to match your needs
@@ -34,7 +34,7 @@ with models.DAG(
 
     start_template_job = DataprocInstantiateWorkflowTemplateOperator(
         # The task id of your job
-        task_id="dataproc_workflow_dag",
+        task_id="train_recommender_weekly",
         # The template id of your workflow
         template_id="auto-test",
         project_id=project_id,
