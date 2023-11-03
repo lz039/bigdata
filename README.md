@@ -41,3 +41,4 @@ More example sales numbers see Miro.
 
 - Util for format fixes (`spark -> price_comparison -> XslToCsv`)
 - Aggregration and filtering (`spark -> price_comparison -> Prices`)
+- Outcomes see `powerbi -> prices`
